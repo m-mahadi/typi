@@ -145,25 +145,10 @@ Open this folder in Obsidian with **Open folder as vault**.
 New-Item -ItemType Directory -Force -Path $configDir | Out-Null
 Write-Utf8NoBom $configPath (@{ vaultPath = $vaultPath } | ConvertTo-Json)
 
-$obsidianExe = @(
-  (Join-Path $env:LOCALAPPDATA "Programs\Obsidian\Obsidian.exe"),
-  (Join-Path $env:LOCALAPPDATA "Obsidian\Obsidian.exe"),
-  "$env:LOCALAPPDATA\Programs\Obsidian\Obsidian.exe"
-) | Where-Object { Test-Path $_ } | Select-Object -First 1
-
 Write-Host ""
 Write-Host "Installed."
 Write-Host "  Typi: $exePath"
 Write-Host "  Vault: $vaultPath"
 Write-Host "  Notes folder: $notesFolder"
-
-if ($obsidianExe) {
-  Write-Host "Opening vault in Obsidian..."
-  Register-ObsidianVault $vaultPath
-  Start-Process ("obsidian://open?path=" + [uri]::EscapeDataString($welcome))
-} else {
-  Write-Host "Obsidian not found - opening the official Obsidian download page."
-  Start-Process "https://obsidian.md/download"
-}
 
 Start-Process -FilePath $exePath

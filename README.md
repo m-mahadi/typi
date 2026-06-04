@@ -1,10 +1,16 @@
-# Typi
+# Typi - typewriter simulator and writing app
 
-Typi is a typewriter-style writing desk for Windows. It gives you a focused place to write and saves notes as Markdown into an Obsidian vault.
+Typi is an open source typewriter simulator, typewriter software, and focused writing app for Windows. It gives you a typewriter-style writing desk, blocks paste, plays typewriter sounds, autosaves Markdown notes, and opens them in an Obsidian vault.
+
+Website: https://m-mahadi.github.io/typi.html
+
+Download: https://github.com/m-mahadi/typi/releases/latest
 
 ## What it does
 
 - Typewriter-inspired writing UI with key sounds
+- Typewriter simulator software for focused writing
+- Typewriter writing app for Windows, Markdown, and Obsidian
 - Local draft autosave while you write
 - Vault autosave in the Windows app, so the current sheet is written to Markdown while you type
 - Saves Markdown notes into `Typi Notes/` inside your vault
@@ -13,7 +19,7 @@ Typi is a typewriter-style writing desk for Windows. It gives you a focused plac
 - Opens the exact saved-notes folder with **Show Notes**
 - Creates a default local vault at `C:\Users\<you>\Documents\Typi Vault` if you have not chosen one yet
 - Blocks paste/drop into the editor so Typi stays a writing desk, not a dumping ground
-- Checks whether Obsidian is installed and can install the official Obsidian app through Windows Package Manager if the user agrees
+- Checks whether Obsidian is installed and can download/open the official Obsidian Windows installer if the user agrees
 - Works as an Electron desktop app and as a simple browser version
 
 ## Windows app
@@ -48,7 +54,7 @@ The installer writes Typi's vault config to `%APPDATA%\typi\config.json`. If you
 C:\Users\<you>\Documents\Typi Vault
 ```
 
-On first launch, Typi checks whether Obsidian is installed. If it is missing, Typi asks before doing anything. You can let Typi install the official `Obsidian.Obsidian` Windows package, open the Obsidian download page, or skip for now. Typi still works without Obsidian because it saves plain Markdown files, but Obsidian is recommended for browsing and organizing those notes.
+On first launch, Typi checks whether Obsidian is installed before opening the writing desk. If Obsidian is missing, Typi asks first. You can let Typi download and open the official Obsidian Windows installer, open the Obsidian download page, or skip for now. Typi still works without Obsidian because it saves plain Markdown files, but Obsidian is recommended for browsing and organizing those notes.
 
 Use **Open Obsidian** in the app to open the configured vault directly. Use **Show Notes** if you only want the folder where Typi writes Markdown files.
 
