@@ -204,6 +204,50 @@ function saveNoteToVault(filename, markdown) {
   return { ok: true, path: filePath, filename: safeName };
 }
 
+function getObsidianConfigPath() {
+  return path.join(app.getPath("appData"), "Obsidian", "obsidian.json");
+}
+
+function registerVaultWithObsidian(vaultPath) {
+  const configPath = getObsidianConfigPath();
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
+
+  let config = { vaults: {} };
+  try {
+    config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  } catch {
+    config = { vaults: {} };
+  }
+  if (!config.vaults || typeof config.vaults !== "object") {
+    config.vaults = {};
+  }
+
+  let vaultId = Object.keys(config.vaults).find((key) => config.vaults[key]?.path === vaultPath);
+  for (const vault of Object.values(config.vaults)) {
+    if (vault && typeof vault === "object" && Object.hasOwn(vault, "open")) {
+      vault.open = false;
+    }
+  }
+
+  if (!vaultId) {
+    vaultId = `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
+    config.vaults[vaultId] = { path: vaultPath, ts: Date.now(), open: true };
+  } else {
+    config.vaults[vaultId].ts = Date.now();
+    config.vaults[vaultId].open = true;
+  }
+
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf8");
+  return vaultId;
+}
+
+function getObsidianTargetPath(vaultPath, filename) {
+  if (filename) {
+    return path.join(vaultPath, NOTES_FOLDER, path.basename(filename));
+  }
+  return path.join(vaultPath, "Welcome to Typi.md");
+}
+
 async function askToInstallObsidianForOpen() {
   const result = await dialog.showMessageBox({
     type: "info",
@@ -231,7 +275,7 @@ async function askToInstallObsidianForOpen() {
   return null;
 }
 
-async function openVaultInObsidian() {
+async function openVaultInObsidian(filename) {
   const vaultPath = ensureDefaultVault();
   let obsidianExe = findObsidianExe();
   if (!obsidianExe) {
@@ -241,9 +285,10 @@ async function openVaultInObsidian() {
     return { ok: false, error: "Obsidian is not installed." };
   }
 
-  const child = spawn(obsidianExe, [vaultPath], { detached: true, stdio: "ignore" });
-  child.unref();
-  return { ok: true, path: vaultPath };
+  registerVaultWithObsidian(vaultPath);
+  const targetPath = getObsidianTargetPath(vaultPath, filename);
+  await shell.openExternal(`obsidian://open?path=${encodeURIComponent(targetPath)}`);
+  return { ok: true, path: targetPath };
 }
 
 async function showNotesFolder() {
@@ -300,9 +345,9 @@ app.whenReady().then(() => {
     }
   });
 
-  ipcMain.handle("vault:open-obsidian", async () => {
+  ipcMain.handle("vault:open-obsidian", async (_event, { filename } = {}) => {
     try {
-      return await openVaultInObsidian();
+      return await openVaultInObsidian(filename);
     } catch (err) {
       return { ok: false, error: err.message };
     }

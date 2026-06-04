@@ -552,7 +552,7 @@ btnOpenObsidian?.addEventListener("click", async () => {
     return;
   }
   await autoSaveToVault();
-  const result = await window.typi.openObsidian();
+  const result = await window.typi.openObsidian(activeFilename);
   showToast(result.ok ? "Opened Typi Vault in Obsidian." : result.error || "Could not open Obsidian.");
 });
 
