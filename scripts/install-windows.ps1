@@ -6,18 +6,28 @@ $installer = Join-Path $projectRoot "dist\typi-setup.exe"
 $installDir = Join-Path $env:LOCALAPPDATA "Programs\Typi"
 $configDir = Join-Path $env:APPDATA "typi"
 $configPath = Join-Path $configDir "config.json"
-$defaultVaultPath = Join-Path (Join-Path $env:USERPROFILE "Documents") "Typi Vault"
-$vaultPath = $defaultVaultPath
+$defaultVaultPath = [System.IO.Path]::GetFullPath(
+  (Join-Path ([Environment]::GetFolderPath("MyDocuments")) "Typi Vault")
+)
+
+$config = @{}
 if (Test-Path $configPath) {
   try {
     $existingConfig = Get-Content -Path $configPath -Raw | ConvertFrom-Json
-    if ($existingConfig.vaultPath) {
-      $vaultPath = $existingConfig.vaultPath
+    foreach ($prop in $existingConfig.PSObject.Properties) {
+      $config[$prop.Name] = $prop.Value
     }
   } catch {
-    $vaultPath = $defaultVaultPath
+    $config = @{}
   }
 }
+
+if ($config.vaultPath -and (Test-Path $config.vaultPath)) {
+  $vaultPath = [System.IO.Path]::GetFullPath($config.vaultPath)
+} else {
+  $vaultPath = $defaultVaultPath
+}
+$config.vaultPath = $vaultPath
 $notesFolder = Join-Path $vaultPath "Typi Notes"
 $desktop = [Environment]::GetFolderPath("Desktop")
 $startMenu = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs"
@@ -96,7 +106,7 @@ Open this folder in Obsidian with **Open folder as vault**.
 }
 
 New-Item -ItemType Directory -Force -Path $configDir | Out-Null
-Write-Utf8NoBom $configPath (@{ vaultPath = $vaultPath } | ConvertTo-Json)
+Write-Utf8NoBom $configPath ($config | ConvertTo-Json -Depth 8)
 
 Write-Host ""
 Write-Host "Installed."

@@ -1,6 +1,6 @@
 {
   "name": "typi",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "private": true,
   "description": "Typi - open source typewriter simulator and writing app for Obsidian",
   "main": "electron/main.js",

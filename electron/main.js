@@ -11,7 +11,7 @@ const OBSIDIAN_LATEST_RELEASE_API = "https://api.github.com/repos/obsidianmd/obs
 const OBSIDIAN_PROMPT_VERSION = 2;
 
 function getDefaultVaultPath() {
-  return path.join(app.getPath("home"), "Documents", DEFAULT_VAULT_NAME);
+  return path.join(app.getPath("documents"), DEFAULT_VAULT_NAME);
 }
 
 function getConfigPath() {
@@ -284,11 +284,36 @@ async function promptForObsidianIfMissing() {
   });
 }
 
-function createObsidianVault(vaultPath) {
-  fs.mkdirSync(vaultPath, { recursive: true });
-  fs.mkdirSync(path.join(vaultPath, NOTES_FOLDER), { recursive: true });
+function normalizeVaultPath(vaultPath) {
+  if (!vaultPath || typeof vaultPath !== "string") {
+    return "";
+  }
+  const resolved = path.resolve(vaultPath.trim());
+  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+}
 
-  const obsidianDir = path.join(vaultPath, ".obsidian");
+function canonicalVaultPath(vaultPath) {
+  return path.resolve(String(vaultPath).trim());
+}
+
+function getVaultPathFromConfig() {
+  const config = loadConfig();
+  if (!config.vaultPath) {
+    return null;
+  }
+  return canonicalVaultPath(config.vaultPath);
+}
+
+function ensureVaultFiles(vaultPath) {
+  return createObsidianVault(vaultPath);
+}
+
+function createObsidianVault(vaultPath) {
+  const canonical = canonicalVaultPath(vaultPath);
+  fs.mkdirSync(canonical, { recursive: true });
+  fs.mkdirSync(path.join(canonical, NOTES_FOLDER), { recursive: true });
+
+  const obsidianDir = path.join(canonical, ".obsidian");
   fs.mkdirSync(obsidianDir, { recursive: true });
 
   const obsidianFiles = {
@@ -317,7 +342,7 @@ function createObsidianVault(vaultPath) {
     "editor-status",
   ]);
 
-  const welcomePath = path.join(vaultPath, "Welcome to Typi.md");
+  const welcomePath = path.join(canonical, "Welcome to Typi.md");
   if (!fs.existsSync(welcomePath)) {
     fs.writeFileSync(
       welcomePath,
@@ -327,21 +352,29 @@ Notes saved from **Typi** are stored in \`${NOTES_FOLDER}/\`.
 
 Open this folder in Obsidian: **Open folder as vault** and choose:
 
-\`${vaultPath.replace(/\\/g, "/")}\`
+\`${canonical.replace(/\\/g, "/")}\`
 `
     );
   }
+
+  return canonical;
 }
 
 function ensureDefaultVault() {
   const config = loadConfig();
-  if (config.vaultPath) {
-    createObsidianVault(config.vaultPath);
-    return config.vaultPath;
+  const configured = getVaultPathFromConfig();
+
+  if (configured) {
+    const canonical = ensureVaultFiles(configured);
+    if (config.vaultPath !== canonical) {
+      config.vaultPath = canonical;
+      saveConfig(config);
+    }
+    return canonical;
   }
 
-  const vaultPath = getDefaultVaultPath();
-  createObsidianVault(vaultPath);
+  const vaultPath = canonicalVaultPath(getDefaultVaultPath());
+  ensureVaultFiles(vaultPath);
   config.vaultPath = vaultPath;
   saveConfig(config);
   return vaultPath;
@@ -349,20 +382,20 @@ function ensureDefaultVault() {
 
 function getVaultInfo() {
   const config = loadConfig();
-  const vaultPath = config.vaultPath;
+  const vaultPath = config.vaultPath ? canonicalVaultPath(config.vaultPath) : null;
   const connected = Boolean(vaultPath && fs.existsSync(vaultPath));
   return {
     connected,
-    path: connected ? vaultPath : null,
-    name: connected ? path.basename(vaultPath) : null,
+    path: vaultPath,
+    name: vaultPath ? path.basename(vaultPath) : null,
     notesFolder: NOTES_FOLDER,
   };
 }
 
 function setVaultPath(vaultPath) {
-  createObsidianVault(vaultPath);
+  const canonical = ensureVaultFiles(vaultPath);
   const config = loadConfig();
-  config.vaultPath = vaultPath;
+  config.vaultPath = canonical;
   saveConfig(config);
   return getVaultInfo();
 }
@@ -389,6 +422,8 @@ function getObsidianConfigPath() {
 }
 
 function registerVaultWithObsidian(vaultPath) {
+  const canonical = canonicalVaultPath(vaultPath);
+  const normalizedCanonical = normalizeVaultPath(canonical);
   const configPath = getObsidianConfigPath();
   fs.mkdirSync(path.dirname(configPath), { recursive: true });
 
@@ -402,7 +437,11 @@ function registerVaultWithObsidian(vaultPath) {
     config.vaults = {};
   }
 
-  let vaultId = Object.keys(config.vaults).find((key) => config.vaults[key]?.path === vaultPath);
+  let vaultId = Object.keys(config.vaults).find((key) => {
+    const existingPath = config.vaults[key]?.path;
+    return existingPath && normalizeVaultPath(existingPath) === normalizedCanonical;
+  });
+
   for (const vault of Object.values(config.vaults)) {
     if (vault && typeof vault === "object" && Object.hasOwn(vault, "open")) {
       vault.open = false;
@@ -411,62 +450,84 @@ function registerVaultWithObsidian(vaultPath) {
 
   if (!vaultId) {
     vaultId = `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
-    config.vaults[vaultId] = { path: vaultPath, ts: Date.now(), open: true };
+    config.vaults[vaultId] = { path: canonical, ts: Date.now(), open: true };
   } else {
+    config.vaults[vaultId].path = canonical;
     config.vaults[vaultId].ts = Date.now();
     config.vaults[vaultId].open = true;
   }
 
-  fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf8");
+  const tempPath = `${configPath}.tmp`;
+  fs.writeFileSync(tempPath, JSON.stringify(config, null, 2), "utf8");
+  fs.renameSync(tempPath, configPath);
   return vaultId;
 }
 
 function getObsidianTargetPath(vaultPath, filename) {
+  const welcomePath = path.join(vaultPath, "Welcome to Typi.md");
   if (filename) {
-    return path.join(vaultPath, NOTES_FOLDER, path.basename(filename));
+    const notePath = path.join(vaultPath, NOTES_FOLDER, path.basename(filename));
+    if (fs.existsSync(notePath)) {
+      return notePath;
+    }
   }
-  return path.join(vaultPath, "Welcome to Typi.md");
+  return welcomePath;
 }
 
-async function askToInstallObsidianForOpen() {
+function launchObsidianWithVault(obsidianExe, vaultPath) {
+  return new Promise((resolve) => {
+    try {
+      const child = spawn(obsidianExe, [vaultPath], {
+        detached: true,
+        windowsHide: false,
+        stdio: "ignore",
+      });
+      child.on("error", (error) => resolve({ ok: false, error: error.message }));
+      child.unref();
+      resolve({ ok: true });
+    } catch (err) {
+      resolve({ ok: false, error: err.message });
+    }
+  });
+}
+
+function openObsidianUri(targetPath) {
+  const uri = `obsidian://open?path=${encodeURIComponent(targetPath)}`;
+  shell.openExternal(uri).catch(() => {});
+}
+
+async function promptObsidianMissingForOpen() {
   const result = await dialog.showMessageBox({
     type: "info",
-    buttons: ["Install Obsidian", "Open download page", "Cancel"],
+    buttons: ["Open download page", "Cancel"],
     defaultId: 0,
-    cancelId: 2,
+    cancelId: 1,
     title: "Open Typi Vault in Obsidian",
     message: "Obsidian is not installed yet.",
-    detail: "Typi can still save Markdown files, but Obsidian makes the Typi Vault easy to browse.",
+    detail: "Typi still saves Markdown files. Open the official download page?",
   });
 
   if (result.response === 0) {
-    const flowResult = await runObsidianInstallerFlow();
-    if (flowResult.installed) {
-      return flowResult.path || findObsidianExe();
-    }
-    return findObsidianExe();
-  }
-
-  if (result.response === 1) {
     await shell.openExternal(OBSIDIAN_DOWNLOAD_URL);
   }
-
-  return null;
 }
 
 async function openVaultInObsidian(filename) {
   const vaultPath = ensureDefaultVault();
-  let obsidianExe = findObsidianExe();
+  const obsidianExe = findObsidianExe();
   if (!obsidianExe) {
-    obsidianExe = await askToInstallObsidianForOpen();
-  }
-  if (!obsidianExe) {
+    await promptObsidianMissingForOpen();
     return { ok: false, error: "Obsidian is not installed." };
   }
 
   registerVaultWithObsidian(vaultPath);
   const targetPath = getObsidianTargetPath(vaultPath, filename);
-  await shell.openExternal(`obsidian://open?path=${encodeURIComponent(targetPath)}`);
+  const launchResult = await launchObsidianWithVault(obsidianExe, vaultPath);
+  if (!launchResult.ok) {
+    return { ok: false, error: "Typi Vault folder could not be opened." };
+  }
+
+  setTimeout(() => openObsidianUri(targetPath), 1000);
   return { ok: true, path: targetPath };
 }
 
@@ -475,7 +536,10 @@ async function showNotesFolder() {
   const notesDir = path.join(vaultPath, NOTES_FOLDER);
   fs.mkdirSync(notesDir, { recursive: true });
   const error = await shell.openPath(notesDir);
-  return error ? { ok: false, error } : { ok: true, path: notesDir };
+  if (error) {
+    return { ok: false, error: "Typi Notes folder could not be opened." };
+  }
+  return { ok: true, path: notesDir };
 }
 
 function createWindow() {
@@ -508,7 +572,7 @@ app.whenReady().then(async () => {
     const result = await dialog.showOpenDialog({
       properties: ["openDirectory", "createDirectory"],
       title: "Choose Obsidian vault folder",
-      defaultPath: path.join(app.getPath("home"), "Documents"),
+      defaultPath: app.getPath("documents"),
     });
     if (result.canceled || !result.filePaths[0]) {
       return getVaultInfo();

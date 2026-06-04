@@ -553,7 +553,11 @@ btnOpenObsidian?.addEventListener("click", async () => {
   }
   await autoSaveToVault();
   const result = await window.typi.openObsidian(activeFilename);
-  showToast(result.ok ? "Opened Typi Vault in Obsidian." : result.error || "Could not open Obsidian.");
+  if (result.ok) {
+    showToast("Opened Typi Vault in Obsidian.");
+  } else {
+    showToast(result.error || "Could not open Obsidian.");
+  }
 });
 
 btnShowNotes?.addEventListener("click", async () => {
@@ -563,7 +567,11 @@ btnShowNotes?.addEventListener("click", async () => {
   }
   await autoSaveToVault();
   const result = await window.typi.showNotes();
-  showToast(result.ok ? "Opened Typi Notes folder." : result.error || "Could not open notes folder.");
+  if (result.ok) {
+    showToast("Opened Typi Notes folder.");
+  } else {
+    showToast(result.error || "Typi Notes folder could not be opened.");
+  }
 });
 btnNew.addEventListener("click", clearSheet);
 btnSave.addEventListener("click", saveNote);
