@@ -27,53 +27,6 @@ function Write-Utf8NoBom($path, $content) {
   [System.IO.File]::WriteAllText($path, $content, $encoding)
 }
 
-function Register-ObsidianVault($vaultPath) {
-  $obsidianConfigDir = Join-Path $env:APPDATA "Obsidian"
-  $obsidianConfigPath = Join-Path $obsidianConfigDir "obsidian.json"
-  New-Item -ItemType Directory -Force -Path $obsidianConfigDir | Out-Null
-
-  if (Test-Path $obsidianConfigPath) {
-    try {
-      $obsidianConfig = Get-Content -Path $obsidianConfigPath -Raw | ConvertFrom-Json
-    } catch {
-      $obsidianConfig = [pscustomobject]@{ vaults = [pscustomobject]@{} }
-    }
-  } else {
-    $obsidianConfig = [pscustomobject]@{ vaults = [pscustomobject]@{} }
-  }
-
-  if (-not $obsidianConfig.vaults) {
-    $obsidianConfig | Add-Member -NotePropertyName vaults -NotePropertyValue ([pscustomobject]@{})
-  }
-
-  $vaultId = $null
-  foreach ($prop in $obsidianConfig.vaults.PSObject.Properties) {
-    if ($prop.Value.path -eq $vaultPath) {
-      $vaultId = $prop.Name
-    }
-    if ($prop.Value.PSObject.Properties.Name -contains "open") {
-      $prop.Value.open = $false
-    }
-  }
-
-  if (-not $vaultId) {
-    do {
-      $vaultId = -join ((1..16) | ForEach-Object { "{0:x}" -f (Get-Random -Minimum 0 -Maximum 16) })
-    } while ($obsidianConfig.vaults.PSObject.Properties.Name -contains $vaultId)
-
-    $obsidianConfig.vaults | Add-Member -NotePropertyName $vaultId -NotePropertyValue ([pscustomobject]@{
-      path = $vaultPath
-      ts = [DateTimeOffset]::Now.ToUnixTimeMilliseconds()
-      open = $true
-    })
-  } else {
-    $obsidianConfig.vaults.$vaultId.ts = [DateTimeOffset]::Now.ToUnixTimeMilliseconds()
-    $obsidianConfig.vaults.$vaultId.open = $true
-  }
-
-  Write-Utf8NoBom $obsidianConfigPath ($obsidianConfig | ConvertTo-Json -Depth 8)
-}
-
 if (-not (Test-Path $sourceDir)) {
   Write-Host "Building Typi..."
   Push-Location $projectRoot

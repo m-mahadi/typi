@@ -54,7 +54,9 @@ The installer writes Typi's vault config to `%APPDATA%\typi\config.json`. If you
 C:\Users\<you>\Documents\Typi Vault
 ```
 
-On first launch, Typi checks whether Obsidian is installed before opening the writing desk. If Obsidian is missing, Typi asks first. You can let Typi download and open the official Obsidian Windows installer, open the Obsidian download page, or skip for now. Typi still works without Obsidian because it saves plain Markdown files, but Obsidian is recommended for browsing and organizing those notes.
+On first launch, Typi checks whether Obsidian is installed before opening the writing desk. If Obsidian is missing, Typi asks first. You can let Typi download and open the official Obsidian Windows installer, open the Obsidian download page, or skip for now. After the installer opens, press **Continue** so Typi can detect Obsidian and register your vault. Typi still works without Obsidian because it saves plain Markdown files, but Obsidian is recommended for browsing and organizing those notes.
+
+`npm run install:win` installs Typi only and launches Typi. It does not install Obsidian or open Obsidian download pages.
 
 Use **Open Obsidian** in the app to open the configured vault directly. Use **Show Notes** if you only want the folder where Typi writes Markdown files.
 

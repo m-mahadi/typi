@@ -8,6 +8,7 @@ const DEFAULT_VAULT_NAME = "Typi Vault";
 const NOTES_FOLDER = "Typi Notes";
 const OBSIDIAN_DOWNLOAD_URL = "https://obsidian.md/download";
 const OBSIDIAN_LATEST_RELEASE_API = "https://api.github.com/repos/obsidianmd/obsidian-releases/releases/latest";
+const OBSIDIAN_PROMPT_VERSION = 2;
 
 function getDefaultVaultPath() {
   return path.join(app.getPath("home"), "Documents", DEFAULT_VAULT_NAME);
@@ -31,9 +32,11 @@ function saveConfig(config) {
 }
 
 function findObsidianExe() {
+  const localAppData =
+    process.env.LOCALAPPDATA || path.join(app.getPath("home"), "AppData", "Local");
   const candidates = [
-    path.join(app.getPath("home"), "AppData", "Local", "Programs", "Obsidian", "Obsidian.exe"),
-    path.join(app.getPath("home"), "AppData", "Local", "Obsidian", "Obsidian.exe"),
+    path.join(localAppData, "Programs", "Obsidian", "Obsidian.exe"),
+    path.join(localAppData, "Obsidian", "Obsidian.exe"),
     path.join(process.env.ProgramFiles || "C:\\Program Files", "Obsidian", "Obsidian.exe"),
     path.join(process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)", "Obsidian", "Obsidian.exe"),
   ];
@@ -83,27 +86,31 @@ function requestJson(url) {
 function downloadFile(url, destination) {
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(destination);
-    const request = https.get(url, (response) => {
-      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-        file.close();
-        fs.unlink(destination, () => {});
-        response.resume();
-        downloadFile(response.headers.location, destination).then(resolve, reject);
-        return;
-      }
+    const request = https.get(
+      url,
+      { headers: { "User-Agent": "Typi" } },
+      (response) => {
+        if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+          file.close();
+          fs.unlink(destination, () => {});
+          response.resume();
+          downloadFile(response.headers.location, destination).then(resolve, reject);
+          return;
+        }
 
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        file.close();
-        fs.unlink(destination, () => {});
-        reject(new Error(`HTTP ${response.statusCode}`));
-        return;
-      }
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          file.close();
+          fs.unlink(destination, () => {});
+          reject(new Error(`HTTP ${response.statusCode}`));
+          return;
+        }
 
-      response.pipe(file);
-      file.on("finish", () => {
-        file.close(resolve);
-      });
-    });
+        response.pipe(file);
+        file.on("finish", () => {
+          file.close(resolve);
+        });
+      }
+    );
 
     request.on("error", (error) => {
       file.close();
@@ -123,39 +130,123 @@ async function getLatestObsidianInstallerUrl() {
   return windowsAsset.browser_download_url;
 }
 
-function waitForObsidianInstall(timeoutMs = 45000) {
-  const startedAt = Date.now();
+function markObsidianPrompted() {
+  const config = loadConfig();
+  config.obsidianPromptedAt = new Date().toISOString();
+  config.obsidianPromptVersion = OBSIDIAN_PROMPT_VERSION;
+  saveConfig(config);
+}
+
+async function launchObsidianInstaller(installerPath) {
+  const openError = await shell.openPath(installerPath);
+  if (!openError) {
+    return { ok: true };
+  }
+
   return new Promise((resolve) => {
-    const tick = () => {
-      const obsidianExe = findObsidianExe();
-      if (obsidianExe || Date.now() - startedAt > timeoutMs) {
-        resolve(obsidianExe);
-        return;
-      }
-      setTimeout(tick, 1500);
-    };
-    tick();
+    try {
+      const child = spawn(installerPath, [], {
+        detached: true,
+        windowsHide: false,
+        stdio: "ignore",
+      });
+      child.on("error", (error) => resolve({ ok: false, error: error.message }));
+      child.unref();
+      resolve({ ok: true });
+    } catch (err) {
+      resolve({ ok: false, error: err.message });
+    }
   });
 }
 
-async function installObsidianFromOfficialInstaller() {
-  const downloadUrl = await getLatestObsidianInstallerUrl();
-  const installerPath = path.join(app.getPath("temp"), path.basename(new URL(downloadUrl).pathname));
-  await downloadFile(downloadUrl, installerPath);
-
-  return new Promise((resolve) => {
-    const child = spawn(installerPath, [], { detached: false, windowsHide: false });
-    child.on("error", (error) => resolve({ ok: false, error: error.message }));
-    child.on("close", async () => {
-      const obsidianExe = await waitForObsidianInstall();
-      resolve({ ok: Boolean(obsidianExe), path: obsidianExe, installerPath });
+async function promptObsidianInstallContinue() {
+  while (true) {
+    const continueResult = await dialog.showMessageBox({
+      type: "info",
+      buttons: ["Continue", "Open download page", "Skip"],
+      defaultId: 0,
+      cancelId: 2,
+      title: "Install Obsidian",
+      message: "Finish the Obsidian installer, then press Continue.",
+      detail: "If the installer is still running, finish it first. If the installer did not appear, use Open download page or Skip.",
     });
-  });
+
+    if (continueResult.response === 1) {
+      await shell.openExternal(OBSIDIAN_DOWNLOAD_URL);
+      return { installed: false };
+    }
+
+    if (continueResult.response === 2) {
+      return { installed: false, skipped: true };
+    }
+
+    const obsidianExe = findObsidianExe();
+    if (obsidianExe) {
+      const vaultPath = ensureDefaultVault();
+      registerVaultWithObsidian(vaultPath);
+      await dialog.showMessageBox({
+        type: "info",
+        buttons: ["OK"],
+        title: "Obsidian installed",
+        message: "Obsidian is installed.",
+        detail: "Typi registered your vault in Obsidian.",
+      });
+      return { installed: true, path: obsidianExe };
+    }
+
+    const retryResult = await dialog.showMessageBox({
+      type: "warning",
+      buttons: ["Check again", "Open download page", "Skip"],
+      defaultId: 0,
+      cancelId: 2,
+      title: "Obsidian not found yet",
+      message: "Typi could not find Obsidian on this PC yet.",
+      detail: "If the installer is still open, finish it and choose Check again.",
+    });
+
+    if (retryResult.response === 1) {
+      await shell.openExternal(OBSIDIAN_DOWNLOAD_URL);
+      return { installed: false };
+    }
+
+    if (retryResult.response === 2) {
+      return { installed: false, skipped: true };
+    }
+  }
+}
+
+async function runObsidianInstallerFlow() {
+  let launchResult = { ok: false };
+  try {
+    const downloadUrl = await getLatestObsidianInstallerUrl();
+    const installerPath = path.join(
+      app.getPath("temp"),
+      path.basename(new URL(downloadUrl).pathname)
+    );
+    await downloadFile(downloadUrl, installerPath);
+    launchResult = await launchObsidianInstaller(installerPath);
+  } catch (err) {
+    launchResult = { ok: false, error: err.message };
+  }
+
+  if (!launchResult.ok) {
+    await dialog.showMessageBox({
+      type: "warning",
+      buttons: ["Open download page"],
+      title: "Could not start Obsidian installer",
+      message: "Typi could not download or open the Obsidian installer.",
+      detail: launchResult.error || "The official Obsidian download page will open instead.",
+    });
+    await shell.openExternal(OBSIDIAN_DOWNLOAD_URL);
+    return { installed: false };
+  }
+
+  return promptObsidianInstallContinue();
 }
 
 async function promptForObsidianIfMissing() {
   const config = loadConfig();
-  if (findObsidianExe() || config.obsidianPromptedAt) {
+  if (findObsidianExe() || config.obsidianPromptVersion >= OBSIDIAN_PROMPT_VERSION) {
     return;
   }
 
@@ -169,53 +260,28 @@ async function promptForObsidianIfMissing() {
     detail: "Typi still works without Obsidian because it saves plain Markdown files. Obsidian is recommended so you can easily browse, open, and organize your Typi notes.",
   });
 
-  config.obsidianPromptedAt = new Date().toISOString();
-  saveConfig(config);
-
   if (result.response === 0) {
-    await dialog.showMessageBox({
-      type: "info",
-      buttons: ["OK"],
-      title: "Installing Obsidian",
-      message: "Typi will download and open the official Obsidian Windows installer.",
-      detail: "Finish the Obsidian installer when it appears. Typi will continue after that.",
-    });
-    let installResult = { ok: false };
-    try {
-      installResult = await installObsidianFromOfficialInstaller();
-    } catch (err) {
-      installResult = { ok: false, error: err.message };
+    const flowResult = await runObsidianInstallerFlow();
+    if (flowResult.installed || flowResult.skipped) {
+      markObsidianPrompted();
     }
-    if (installResult.ok || findObsidianExe()) {
-      await dialog.showMessageBox({
-        type: "info",
-        buttons: ["OK"],
-        title: "Obsidian installed",
-        message: "Obsidian is installed.",
-        detail: "Open the Typi Vault folder as a vault in Obsidian.",
-      });
-      return;
-    }
-
-    await dialog.showMessageBox({
-      type: "warning",
-      buttons: ["Open download page"],
-      title: "Could not install Obsidian automatically",
-      message: "Typi could not finish the Obsidian installer automatically.",
-      detail: "The official Obsidian download page will open instead.",
-    });
-    await shell.openExternal(OBSIDIAN_DOWNLOAD_URL);
-  } else if (result.response === 1) {
-    await shell.openExternal(OBSIDIAN_DOWNLOAD_URL);
-  } else {
-    await dialog.showMessageBox({
-      type: "warning",
-      buttons: ["OK"],
-      title: "Obsidian skipped",
-      message: "Typi will still save your notes.",
-      detail: "They will be plain Markdown files in your Typi Vault. Install Obsidian later if you want an easy app for browsing and organizing them.",
-    });
+    return;
   }
+
+  markObsidianPrompted();
+
+  if (result.response === 1) {
+    await shell.openExternal(OBSIDIAN_DOWNLOAD_URL);
+    return;
+  }
+
+  await dialog.showMessageBox({
+    type: "warning",
+    buttons: ["OK"],
+    title: "Obsidian skipped",
+    message: "Typi will still save your notes.",
+    detail: "They will be plain Markdown files in your Typi Vault. Install Obsidian later if you want an easy app for browsing and organizing them.",
+  });
 }
 
 function createObsidianVault(vaultPath) {
@@ -374,17 +440,11 @@ async function askToInstallObsidianForOpen() {
   });
 
   if (result.response === 0) {
-    let installResult = { ok: false };
-    try {
-      installResult = await installObsidianFromOfficialInstaller();
-    } catch (err) {
-      installResult = { ok: false, error: err.message };
+    const flowResult = await runObsidianInstallerFlow();
+    if (flowResult.installed) {
+      return flowResult.path || findObsidianExe();
     }
-    if (installResult.ok || findObsidianExe()) {
-      return findObsidianExe();
-    }
-    await shell.openExternal(OBSIDIAN_DOWNLOAD_URL);
-    return null;
+    return findObsidianExe();
   }
 
   if (result.response === 1) {
@@ -439,8 +499,8 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
-  ensureDefaultVault();
   await promptForObsidianIfMissing();
+  ensureDefaultVault();
 
   ipcMain.handle("vault:info", () => getVaultInfo());
 
