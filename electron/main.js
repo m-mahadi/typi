@@ -10,7 +10,7 @@ function getDefaultVaultPath() {
 }
 
 function getConfigPath() {
-  return path.join(app.getPath("userData"), "config.json");
+  return path.join(app.getPath("appData"), "typi", "config.json");
 }
 
 function loadConfig() {
@@ -77,7 +77,8 @@ Open this folder in Obsidian: **Open folder as vault** and choose:
 
 function ensureDefaultVault() {
   const config = loadConfig();
-  if (config.vaultPath && fs.existsSync(config.vaultPath)) {
+  if (config.vaultPath) {
+    createObsidianVault(config.vaultPath);
     return config.vaultPath;
   }
 

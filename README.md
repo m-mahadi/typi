@@ -14,6 +14,12 @@ Typi is a typewriter-style writing desk for Windows. It gives you a focused plac
 
 ## Windows app
 
+Download the Windows installer from the [latest GitHub release](https://github.com/m-mahadi/typi/releases/latest):
+
+```text
+typi-setup.exe
+```
+
 Build the installer:
 
 ```powershell

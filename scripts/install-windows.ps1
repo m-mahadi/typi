@@ -22,6 +22,11 @@ $notesFolder = Join-Path $vaultPath "Typi Notes"
 $desktop = [Environment]::GetFolderPath("Desktop")
 $startMenu = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs"
 
+function Write-Utf8NoBom($path, $content) {
+  $encoding = New-Object System.Text.UTF8Encoding($false)
+  [System.IO.File]::WriteAllText($path, $content, $encoding)
+}
+
 if (-not (Test-Path $sourceDir)) {
   Write-Host "Building Typi..."
   Push-Location $projectRoot
@@ -91,7 +96,7 @@ Open this folder in Obsidian with **Open folder as vault**.
 }
 
 New-Item -ItemType Directory -Force -Path $configDir | Out-Null
-@{ vaultPath = $vaultPath } | ConvertTo-Json | Set-Content -Path $configPath -Encoding UTF8
+Write-Utf8NoBom $configPath (@{ vaultPath = $vaultPath } | ConvertTo-Json)
 
 $obsidianExe = @(
   (Join-Path $env:LOCALAPPDATA "Programs\Obsidian\Obsidian.exe"),
