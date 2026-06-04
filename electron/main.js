@@ -5,6 +5,10 @@ const path = require("path");
 const DEFAULT_VAULT_NAME = "Typi Vault";
 const NOTES_FOLDER = "Typi Notes";
 
+function getDefaultVaultPath() {
+  return path.join(app.getPath("home"), "Documents", DEFAULT_VAULT_NAME);
+}
+
 function getConfigPath() {
   return path.join(app.getPath("userData"), "config.json");
 }
@@ -77,7 +81,7 @@ function ensureDefaultVault() {
     return config.vaultPath;
   }
 
-  const vaultPath = path.join(app.getPath("documents"), DEFAULT_VAULT_NAME);
+  const vaultPath = getDefaultVaultPath();
   createObsidianVault(vaultPath);
   config.vaultPath = vaultPath;
   saveConfig(config);
@@ -150,7 +154,7 @@ app.whenReady().then(() => {
     const result = await dialog.showOpenDialog({
       properties: ["openDirectory", "createDirectory"],
       title: "Choose Obsidian vault folder",
-      defaultPath: app.getPath("documents"),
+      defaultPath: path.join(app.getPath("home"), "Documents"),
     });
     if (result.canceled || !result.filePaths[0]) {
       return getVaultInfo();

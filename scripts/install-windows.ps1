@@ -4,7 +4,20 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $sourceDir = Join-Path $projectRoot "dist\win-unpacked"
 $installer = Join-Path $projectRoot "dist\typi-setup.exe"
 $installDir = Join-Path $env:LOCALAPPDATA "Programs\Typi"
-$vaultPath = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "Typi Vault"
+$configDir = Join-Path $env:APPDATA "typi"
+$configPath = Join-Path $configDir "config.json"
+$defaultVaultPath = Join-Path (Join-Path $env:USERPROFILE "Documents") "Typi Vault"
+$vaultPath = $defaultVaultPath
+if (Test-Path $configPath) {
+  try {
+    $existingConfig = Get-Content -Path $configPath -Raw | ConvertFrom-Json
+    if ($existingConfig.vaultPath) {
+      $vaultPath = $existingConfig.vaultPath
+    }
+  } catch {
+    $vaultPath = $defaultVaultPath
+  }
+}
 $notesFolder = Join-Path $vaultPath "Typi Notes"
 $desktop = [Environment]::GetFolderPath("Desktop")
 $startMenu = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs"
@@ -77,9 +90,8 @@ Open this folder in Obsidian with **Open folder as vault**.
 '@ | Set-Content -Path $welcome -Encoding UTF8
 }
 
-$configDir = Join-Path $env:APPDATA "typi"
 New-Item -ItemType Directory -Force -Path $configDir | Out-Null
-@{ vaultPath = $vaultPath } | ConvertTo-Json | Set-Content -Path (Join-Path $configDir "config.json") -Encoding UTF8
+@{ vaultPath = $vaultPath } | ConvertTo-Json | Set-Content -Path $configPath -Encoding UTF8
 
 $obsidianExe = @(
   (Join-Path $env:LOCALAPPDATA "Programs\Obsidian\Obsidian.exe"),
