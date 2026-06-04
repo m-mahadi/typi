@@ -1,6 +1,6 @@
 # Sound attribution
 
-Typewriter sound effects from [Mixkit](https://mixkit.co/free-sound-effects/typewriter/) (Mixkit License — free for commercial use).
+Typewriter sound effects from [Mixkit](https://mixkit.co/free-sound-effects/typewriter/) (Mixkit License - free for commercial use).
 
 | File | Mixkit asset |
 |------|----------------|

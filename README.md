@@ -48,3 +48,9 @@ Open `http://localhost:8080` in Chrome or Edge. The web version uses the File Sy
 ## Sounds
 
 Typi uses local sound files in `sounds/`. Attribution is in `sounds/ATTRIBUTION.md`.
+
+## License
+
+Typi's source code is open source under the MIT License. See `LICENSE`.
+
+Bundled typewriter sound effects are from Mixkit and remain under the Mixkit License; see `sounds/ATTRIBUTION.md`.

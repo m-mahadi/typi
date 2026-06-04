@@ -5,6 +5,7 @@
   "description": "Typi - typewriter writing desk for Obsidian",
   "main": "electron/main.js",
   "author": "mahadi9664",
+  "license": "MIT",
   "keywords": [
     "electron",
     "obsidian",
