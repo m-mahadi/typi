@@ -1,0 +1,65 @@
+{
+  "name": "typi",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Typi - typewriter writing desk for Obsidian",
+  "main": "electron/main.js",
+  "author": "mahadi9664",
+  "keywords": [
+    "electron",
+    "obsidian",
+    "writing",
+    "typewriter"
+  ],
+  "scripts": {
+    "start": "electron .",
+    "start:web": "npx serve -l 8080",
+    "download:sounds": "node scripts/download-sounds.mjs",
+    "build:win": "electron-builder --win",
+    "install:win": "powershell -ExecutionPolicy Bypass -File scripts/install-windows.ps1"
+  },
+  "build": {
+    "appId": "app.typi.writer",
+    "productName": "Typi",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "index.html",
+      "styles.css",
+      "app.js",
+      "sw.js",
+      "manifest.webmanifest",
+      "icons/**/*",
+      "sounds/**/*",
+      "electron/**/*"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Typi",
+      "runAfterFinish": true,
+      "artifactName": "typi-setup.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "^42.3.3",
+    "electron-builder": "^26.8.1"
+  }
+}

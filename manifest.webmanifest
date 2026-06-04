@@ -1,0 +1,20 @@
+{
+  "name": "Typi",
+  "short_name": "Typi",
+  "description": "Typi - typewriter writing desk for Obsidian.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0c0a08",
+  "theme_color": "#151210",
+  "orientation": "any",
+  "categories": ["productivity", "writing"],
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

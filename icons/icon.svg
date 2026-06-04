@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Typewriter">
+  <rect width="512" height="512" rx="96" fill="#2c2416"/>
+  <rect x="72" y="96" width="368" height="220" rx="16" fill="#f4ecd8" stroke="#8b3a2f" stroke-width="8"/>
+  <rect x="96" y="132" width="320" height="10" rx="4" fill="#d9cdb0"/>
+  <rect x="96" y="164" width="280" height="8" rx="4" fill="#d9cdb0"/>
+  <rect x="96" y="196" width="300" height="8" rx="4" fill="#d9cdb0"/>
+  <rect x="96" y="228" width="240" height="8" rx="4" fill="#d9cdb0"/>
+  <rect x="108" y="120" width="2" height="180" fill="#b43c32" opacity="0.45"/>
+  <rect x="56" y="332" width="400" height="84" rx="18" fill="#3d3428"/>
+  <rect x="88" y="356" width="48" height="36" rx="8" fill="#4a3f30"/>
+  <rect x="152" y="356" width="48" height="36" rx="8" fill="#4a3f30"/>
+  <rect x="216" y="356" width="48" height="36" rx="8" fill="#4a3f30"/>
+  <rect x="280" y="356" width="48" height="36" rx="8" fill="#4a3f30"/>
+  <rect x="344" y="348" width="72" height="44" rx="10" fill="#8b3a2f"/>
+  <circle cx="420" cy="120" r="18" fill="#d4a017"/>
+</svg>

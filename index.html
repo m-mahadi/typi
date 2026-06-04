@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#151210" />
+  <meta name="description" content="Typi - a typewriter desk that saves your writing to Obsidian." />
+  <title>Typi</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Oswald:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="scene">
+    <div class="desk" id="typewriter">
+      <header class="machine-header">
+        <div class="header-chrome">
+          <div class="brand-plate">
+            <span class="brand-emblem" aria-hidden="true">Ty</span>
+            <div>
+              <span class="brand-name">Typi</span>
+              <span class="brand-model">Typewriter Desk - Obsidian Edition</span>
+            </div>
+          </div>
+          <div class="status-lamps">
+            <span class="lamp" id="vault-lamp" title="Vault connection">VAULT</span>
+            <span class="lamp lamp-on" id="spell-lamp" title="Spell check on">SPELL</span>
+            <span class="lamp lamp-on" id="sound-lamp" title="Sound on">SOUND</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="carriage-rail" aria-hidden="true">
+        <div class="carriage-block" id="carriage-block">
+          <span class="carriage-knob"></span>
+          <span class="carriage-label">CARRIAGE</span>
+        </div>
+      </div>
+
+      <main class="typewriter-body">
+        <div class="platen-bar" aria-hidden="true">
+          <div class="platen-assembly" id="platen">
+            <div class="platen-roller platen-left"></div>
+            <div class="platen-glass"></div>
+            <div class="platen-roller platen-right"></div>
+          </div>
+          <div class="ribbon-strip" id="ribbon-strip">
+            <span class="ribbon-red"></span>
+            <span class="ribbon-black"></span>
+          </div>
+        </div>
+
+        <div class="writing-window">
+          <div class="writing-well" id="writing-well">
+            <div class="paper-carriage" id="paper-carriage">
+              <div class="typebar" id="typebar">
+                <span class="typebar-arm"></span>
+                <span class="typebar-slug"></span>
+              </div>
+              <div class="margin-ruler"></div>
+              <div class="right-margin" aria-hidden="true"></div>
+              <div class="paper-sheet" id="paper-sheet">
+                <div class="paper-holes" aria-hidden="true"></div>
+                <label class="title-row" for="note-title">
+                  <span class="title-label">Title</span>
+                  <input
+                    id="note-title"
+                    class="title-input"
+                    type="text"
+                    placeholder="Untitled note"
+                    spellcheck="true"
+                    autocomplete="off"
+                  />
+                </label>
+                <textarea
+                  id="editor"
+                  class="editor"
+                  spellcheck="true"
+                  autocorrect="on"
+                  autocapitalize="sentences"
+                  placeholder="Begin typing..."
+                  aria-label="Note body"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="keyboard-deck" id="keyboard-deck" aria-hidden="true">
+          <div class="key-row">
+            <span class="fake-key"></span><span class="fake-key"></span><span class="fake-key"></span>
+            <span class="fake-key"></span><span class="fake-key"></span><span class="fake-key"></span>
+            <span class="fake-key"></span><span class="fake-key"></span><span class="fake-key"></span>
+            <span class="fake-key"></span><span class="fake-key wide"></span><span class="fake-key"></span>
+          </div>
+        </div>
+      </main>
+
+      <footer class="control-deck">
+        <div class="meta-readout">
+          <span id="word-count">Pg 1 - 1 ln - 0 wd</span>
+          <span id="save-status">Draft saved locally</span>
+        </div>
+        <div class="controls">
+          <button type="button" class="key key-secondary" id="btn-vault" title="Choose Obsidian vault folder">
+            Link Vault
+          </button>
+          <button type="button" class="key key-secondary" id="btn-new" title="Start a fresh sheet">
+            New Sheet
+          </button>
+          <button type="button" class="key key-secondary" id="btn-sound" title="Toggle typewriter sounds">
+            Sound: On
+          </button>
+          <button type="button" class="key key-primary" id="btn-save" title="Save to Obsidian (Ctrl+S)">
+            Save to Obsidian
+          </button>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
