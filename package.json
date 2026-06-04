@@ -1,6 +1,6 @@
 {
   "name": "typi",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "Typi - typewriter writing desk for Obsidian",
   "main": "electron/main.js",

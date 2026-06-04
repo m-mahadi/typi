@@ -6,8 +6,11 @@ Typi is a typewriter-style writing desk for Windows. It gives you a focused plac
 
 - Typewriter-inspired writing UI with key sounds
 - Local draft autosave while you write
+- Vault autosave in the Windows app, so the current sheet is written to Markdown while you type
 - Saves Markdown notes into `Typi Notes/` inside your vault
 - Lets you choose a vault with **Link Vault**
+- Opens the active vault directly in Obsidian with **Open Obsidian**
+- Opens the exact saved-notes folder with **Show Notes**
 - Creates a default local vault at `C:\Users\<you>\Documents\Typi Vault` if you have not chosen one yet
 - Blocks paste/drop into the editor so Typi stays a writing desk, not a dumping ground
 - Checks whether Obsidian is installed and can install the official Obsidian app through Windows Package Manager if the user agrees
@@ -46,6 +49,8 @@ C:\Users\<you>\Documents\Typi Vault
 ```
 
 On first launch, Typi checks whether Obsidian is installed. If it is missing, Typi asks before doing anything. You can let Typi install the official `Obsidian.Obsidian` Windows package, open the Obsidian download page, or skip for now. Typi still works without Obsidian because it saves plain Markdown files, but Obsidian is recommended for browsing and organizing those notes.
+
+Use **Open Obsidian** in the app to open the configured vault directly. Use **Show Notes** if you only want the folder where Typi writes Markdown files.
 
 ## Web version
 

@@ -204,6 +204,56 @@ function saveNoteToVault(filename, markdown) {
   return { ok: true, path: filePath, filename: safeName };
 }
 
+async function askToInstallObsidianForOpen() {
+  const result = await dialog.showMessageBox({
+    type: "info",
+    buttons: ["Install Obsidian", "Open download page", "Cancel"],
+    defaultId: 0,
+    cancelId: 2,
+    title: "Open Typi Vault in Obsidian",
+    message: "Obsidian is not installed yet.",
+    detail: "Typi can still save Markdown files, but Obsidian makes the Typi Vault easy to browse.",
+  });
+
+  if (result.response === 0) {
+    const installResult = await installObsidianWithWinget();
+    if (installResult.ok || findObsidianExe()) {
+      return findObsidianExe();
+    }
+    await shell.openExternal(OBSIDIAN_DOWNLOAD_URL);
+    return null;
+  }
+
+  if (result.response === 1) {
+    await shell.openExternal(OBSIDIAN_DOWNLOAD_URL);
+  }
+
+  return null;
+}
+
+async function openVaultInObsidian() {
+  const vaultPath = ensureDefaultVault();
+  let obsidianExe = findObsidianExe();
+  if (!obsidianExe) {
+    obsidianExe = await askToInstallObsidianForOpen();
+  }
+  if (!obsidianExe) {
+    return { ok: false, error: "Obsidian is not installed." };
+  }
+
+  const child = spawn(obsidianExe, [vaultPath], { detached: true, stdio: "ignore" });
+  child.unref();
+  return { ok: true, path: vaultPath };
+}
+
+async function showNotesFolder() {
+  const vaultPath = ensureDefaultVault();
+  const notesDir = path.join(vaultPath, NOTES_FOLDER);
+  fs.mkdirSync(notesDir, { recursive: true });
+  const error = await shell.openPath(notesDir);
+  return error ? { ok: false, error } : { ok: true, path: notesDir };
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1100,
@@ -245,6 +295,22 @@ app.whenReady().then(() => {
   ipcMain.handle("vault:save", (_event, { filename, markdown }) => {
     try {
       return saveNoteToVault(filename, markdown);
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle("vault:open-obsidian", async () => {
+    try {
+      return await openVaultInObsidian();
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle("vault:show-notes", async () => {
+    try {
+      return await showNotesFolder();
     } catch (err) {
       return { ok: false, error: err.message };
     }

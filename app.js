@@ -2,6 +2,7 @@ const STORAGE_KEY = "typewriter-desk-draft";
 const VAULT_HANDLE_KEY = "typewriter-desk-vault";
 const SOUND_KEY = "typewriter-desk-sound";
 const NOTES_FOLDER = "Typi Notes";
+const AUTOSAVE_DELAY = 1400;
 
 const editor = document.getElementById("editor");
 const titleInput = document.getElementById("note-title");
@@ -15,6 +16,8 @@ const writingWell = document.getElementById("writing-well");
 const soundLamp = document.getElementById("sound-lamp");
 
 const btnVault = document.getElementById("btn-vault");
+const btnOpenObsidian = document.getElementById("btn-open-obsidian");
+const btnShowNotes = document.getElementById("btn-show-notes");
 const btnNew = document.getElementById("btn-new");
 const btnSound = document.getElementById("btn-sound");
 const btnSave = document.getElementById("btn-save");
@@ -29,8 +32,12 @@ const isElectron = typeof window.typi !== "undefined";
 const storedSound = localStorage.getItem(SOUND_KEY);
 let soundEnabled = storedSound === null ? true : storedSound === "true";
 let saveTimer = null;
+let vaultSaveTimer = null;
 let toastTimer = null;
 let audioWarm = false;
+let activeFilename = null;
+let activeCreatedAt = null;
+let lastVaultFingerprint = "";
 
 const SOUND_FILES = {
   key: ["sounds/key-strike.wav", "sounds/key-strike-alt.wav", "sounds/key-strike-3.wav"],
@@ -98,6 +105,8 @@ function persistDraft() {
     JSON.stringify({
       title: titleInput.value,
       body: editor.value,
+      filename: activeFilename,
+      createdAt: activeCreatedAt,
       updatedAt: new Date().toISOString(),
     })
   );
@@ -109,6 +118,16 @@ function scheduleDraftSave() {
   saveTimer = setTimeout(persistDraft, 500);
 }
 
+function hasNoteContent() {
+  return Boolean(titleInput.value.trim() || editor.value.trim());
+}
+
+function scheduleVaultAutoSave() {
+  if (!isElectron || !hasNoteContent()) return;
+  clearTimeout(vaultSaveTimer);
+  vaultSaveTimer = setTimeout(autoSaveToVault, AUTOSAVE_DELAY);
+}
+
 function restoreDraft() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -116,6 +135,8 @@ function restoreDraft() {
     const draft = JSON.parse(raw);
     titleInput.value = draft.title || "";
     editor.value = draft.body || "";
+    activeFilename = draft.filename || null;
+    activeCreatedAt = draft.createdAt || null;
   } catch {
     localStorage.removeItem(STORAGE_KEY);
   }
@@ -133,12 +154,27 @@ function slugify(text) {
   );
 }
 
-function buildMarkdown(title, body) {
+function ensureNoteIdentity(title) {
+  if (!activeCreatedAt) {
+    activeCreatedAt = new Date().toISOString();
+  }
+  if (!activeFilename) {
+    activeFilename = `${slugify(title || `note-${new Date().toISOString().slice(0, 10)}`)}.md`;
+  }
+  return activeFilename;
+}
+
+function getVaultFingerprint(filename, title, body) {
+  return JSON.stringify({ filename, title: title.trim(), body });
+}
+
+function buildMarkdown(title, body, createdAt = new Date().toISOString()) {
   const now = new Date();
   const displayTitle = title.trim() || "Untitled";
   const safeTitle = displayTitle.replace(/"/g, '\\"');
   return `---
-created: ${now.toISOString()}
+created: ${createdAt}
+updated: ${now.toISOString()}
 source: typewriter-desk
 title: "${safeTitle}"
 ---
@@ -383,20 +419,23 @@ function downloadMarkdown(markdown, filename) {
 async function saveNote() {
   const title = titleInput.value.trim();
   const body = editor.value;
-  const filename = `${slugify(title || `note-${new Date().toISOString().slice(0, 10)}`)}.md`;
+  const filename = ensureNoteIdentity(title);
 
   btnSave.disabled = true;
   btnSave.textContent = "Saving...";
   try {
-    const method = await saveToVault(buildMarkdown(title, body), filename);
+    const markdown = buildMarkdown(title, body, activeCreatedAt);
+    const method = await saveToVault(markdown, filename);
     if (method === "vault") {
+      lastVaultFingerprint = getVaultFingerprint(filename, title, body);
+      persistDraft();
       showToast(`Saved to Obsidian: ${filename}`);
       saveStatusEl.textContent = `In vault - ${filename}`;
       if (soundEnabled) playBell();
     }
   } catch (err) {
     console.error(err);
-    downloadMarkdown(buildMarkdown(title, body), filename);
+    downloadMarkdown(buildMarkdown(title, body, activeCreatedAt), filename);
     showToast("Save failed - downloaded instead.");
   } finally {
     btnSave.disabled = false;
@@ -408,6 +447,10 @@ function clearSheet() {
   if ((titleInput.value.trim() || editor.value.trim()) && !window.confirm("Start a fresh sheet?")) return;
   titleInput.value = "";
   editor.value = "";
+  activeFilename = null;
+  activeCreatedAt = null;
+  lastVaultFingerprint = "";
+  clearTimeout(vaultSaveTimer);
   updateWordCount();
   syncCarriagePosition();
   resizeEditor();
@@ -418,6 +461,7 @@ function clearSheet() {
 editor.addEventListener("input", () => {
   updateWordCount();
   scheduleDraftSave();
+  scheduleVaultAutoSave();
   syncCarriagePosition();
   resizeEditor();
   scrollCaretIntoView();
@@ -433,7 +477,10 @@ editor.addEventListener("keyup", () => {
   updateWordCount();
 });
 
-titleInput.addEventListener("input", scheduleDraftSave);
+titleInput.addEventListener("input", () => {
+  scheduleDraftSave();
+  scheduleVaultAutoSave();
+});
 
 function blockImportedText(event) {
   event.preventDefault();
@@ -443,6 +490,32 @@ function blockImportedText(event) {
 function blockImportedInput(event) {
   if (event.inputType === "insertFromPaste" || event.inputType === "insertFromDrop") {
     blockImportedText(event);
+  }
+}
+
+async function autoSaveToVault() {
+  if (!isElectron || !hasNoteContent()) return;
+
+  const title = titleInput.value.trim();
+  const body = editor.value;
+  const filename = ensureNoteIdentity(title);
+  const fingerprint = getVaultFingerprint(filename, title, body);
+  if (fingerprint === lastVaultFingerprint) return;
+
+  const markdown = buildMarkdown(title, body, activeCreatedAt);
+
+  try {
+    const result = await window.typi.saveNote(filename, markdown);
+    if (!result.ok) {
+      saveStatusEl.textContent = "Local draft saved - vault autosave failed";
+      return;
+    }
+    lastVaultFingerprint = fingerprint;
+    persistDraft();
+    setVaultConnected(true);
+    saveStatusEl.textContent = `Auto-saved to vault - ${filename}`;
+  } catch {
+    saveStatusEl.textContent = "Local draft saved - vault autosave failed";
   }
 }
 
@@ -469,7 +542,29 @@ titleInput.addEventListener("keydown", (event) => {
   }
 });
 
-btnVault.addEventListener("click", linkVault);
+btnVault.addEventListener("click", async () => {
+  const linked = await linkVault();
+  if (linked) scheduleVaultAutoSave();
+});
+btnOpenObsidian?.addEventListener("click", async () => {
+  if (!isElectron) {
+    showToast("Open the installed Typi app to launch Obsidian.");
+    return;
+  }
+  await autoSaveToVault();
+  const result = await window.typi.openObsidian();
+  showToast(result.ok ? "Opened Typi Vault in Obsidian." : result.error || "Could not open Obsidian.");
+});
+
+btnShowNotes?.addEventListener("click", async () => {
+  if (!isElectron) {
+    showToast("Use your browser's saved vault folder.");
+    return;
+  }
+  await autoSaveToVault();
+  const result = await window.typi.showNotes();
+  showToast(result.ok ? "Opened Typi Notes folder." : result.error || "Could not open notes folder.");
+});
 btnNew.addEventListener("click", clearSheet);
 btnSave.addEventListener("click", saveNote);
 
@@ -501,6 +596,7 @@ refreshVaultStatus().then(() => {
     window.typi.getVaultInfo().then((info) => {
       if (info.connected) {
         showToast(`Vault ready: ${info.name} -> ${info.notesFolder}/`);
+        scheduleVaultAutoSave();
       }
     });
   }
