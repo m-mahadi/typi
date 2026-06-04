@@ -435,6 +435,24 @@ editor.addEventListener("keyup", () => {
 
 titleInput.addEventListener("input", scheduleDraftSave);
 
+function blockImportedText(event) {
+  event.preventDefault();
+  showToast("Paste is disabled - Typi is for writing it yourself.");
+}
+
+function blockImportedInput(event) {
+  if (event.inputType === "insertFromPaste" || event.inputType === "insertFromDrop") {
+    blockImportedText(event);
+  }
+}
+
+editor.addEventListener("paste", blockImportedText);
+editor.addEventListener("drop", blockImportedText);
+editor.addEventListener("beforeinput", blockImportedInput);
+titleInput.addEventListener("paste", blockImportedText);
+titleInput.addEventListener("drop", blockImportedText);
+titleInput.addEventListener("beforeinput", blockImportedInput);
+
 editor.addEventListener("keydown", (event) => {
   handleTypingFeedback(event, editor);
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {

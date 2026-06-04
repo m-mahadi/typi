@@ -9,6 +9,7 @@ Typi is a typewriter-style writing desk for Windows. It gives you a focused plac
 - Saves Markdown notes into `Typi Notes/` inside your vault
 - Lets you choose a vault with **Link Vault**
 - Creates a default local vault at `C:\Users\<you>\Documents\Typi Vault` if you have not chosen one yet
+- Blocks paste/drop into the editor so Typi stays a writing desk, not a dumping ground
 - Works as an Electron desktop app and as a simple browser version
 
 ## Windows app
