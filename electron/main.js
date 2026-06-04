@@ -1,9 +1,11 @@
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
+const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
 const DEFAULT_VAULT_NAME = "Typi Vault";
 const NOTES_FOLDER = "Typi Notes";
+const OBSIDIAN_DOWNLOAD_URL = "https://obsidian.md/download";
 
 function getDefaultVaultPath() {
   return path.join(app.getPath("home"), "Documents", DEFAULT_VAULT_NAME);
@@ -24,6 +26,82 @@ function loadConfig() {
 function saveConfig(config) {
   fs.mkdirSync(path.dirname(getConfigPath()), { recursive: true });
   fs.writeFileSync(getConfigPath(), JSON.stringify(config, null, 2));
+}
+
+function findObsidianExe() {
+  const candidates = [
+    path.join(app.getPath("home"), "AppData", "Local", "Programs", "Obsidian", "Obsidian.exe"),
+    path.join(app.getPath("home"), "AppData", "Local", "Obsidian", "Obsidian.exe"),
+    path.join(process.env.ProgramFiles || "C:\\Program Files", "Obsidian", "Obsidian.exe"),
+    path.join(process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)", "Obsidian", "Obsidian.exe"),
+  ];
+  return candidates.find((candidate) => fs.existsSync(candidate)) || null;
+}
+
+function installObsidianWithWinget() {
+  return new Promise((resolve) => {
+    const child = spawn(
+      "winget",
+      ["install", "--id", "Obsidian.Obsidian", "--exact", "--source", "winget", "--accept-package-agreements", "--accept-source-agreements"],
+      { windowsHide: false }
+    );
+
+    child.on("error", (error) => resolve({ ok: false, error: error.message }));
+    child.on("close", (code) => resolve({ ok: code === 0, code }));
+  });
+}
+
+async function promptForObsidianIfMissing() {
+  const config = loadConfig();
+  if (findObsidianExe() || config.obsidianPromptedAt) {
+    return;
+  }
+
+  const result = await dialog.showMessageBox({
+    type: "info",
+    buttons: ["Install Obsidian", "Open download page", "Skip for now"],
+    defaultId: 0,
+    cancelId: 2,
+    title: "Install Obsidian",
+    message: "Typi saves notes as Markdown files for Obsidian.",
+    detail: "Typi still works without Obsidian because it saves plain Markdown files. Obsidian is recommended so you can easily browse, open, and organize your Typi notes.",
+  });
+
+  config.obsidianPromptedAt = new Date().toISOString();
+  saveConfig(config);
+
+  if (result.response === 0) {
+    const installResult = await installObsidianWithWinget();
+    if (installResult.ok || findObsidianExe()) {
+      await dialog.showMessageBox({
+        type: "info",
+        buttons: ["OK"],
+        title: "Obsidian installed",
+        message: "Obsidian is installed.",
+        detail: "Open the Typi Vault folder as a vault in Obsidian.",
+      });
+      return;
+    }
+
+    await dialog.showMessageBox({
+      type: "warning",
+      buttons: ["Open download page"],
+      title: "Could not install Obsidian automatically",
+      message: "Typi could not install Obsidian with Windows Package Manager.",
+      detail: "The official Obsidian download page will open instead.",
+    });
+    await shell.openExternal(OBSIDIAN_DOWNLOAD_URL);
+  } else if (result.response === 1) {
+    await shell.openExternal(OBSIDIAN_DOWNLOAD_URL);
+  } else {
+    await dialog.showMessageBox({
+      type: "warning",
+      buttons: ["OK"],
+      title: "Obsidian skipped",
+      message: "Typi will still save your notes.",
+      detail: "They will be plain Markdown files in your Typi Vault. Install Obsidian later if you want an easy app for browsing and organizing them.",
+    });
+  }
 }
 
 function createObsidianVault(vaultPath) {
@@ -148,6 +226,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   ensureDefaultVault();
+  promptForObsidianIfMissing();
 
   ipcMain.handle("vault:info", () => getVaultInfo());
 

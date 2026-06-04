@@ -114,7 +114,8 @@ if ($obsidianExe) {
   Write-Host "Opening vault in Obsidian..."
   Start-Process -FilePath $obsidianExe -ArgumentList "`"$vaultPath`""
 } else {
-  Write-Host "Obsidian not found - open the vault folder manually in Obsidian."
+  Write-Host "Obsidian not found - opening the official Obsidian download page."
+  Start-Process "https://obsidian.md/download"
 }
 
 Start-Process -FilePath $exePath

@@ -10,6 +10,7 @@ Typi is a typewriter-style writing desk for Windows. It gives you a focused plac
 - Lets you choose a vault with **Link Vault**
 - Creates a default local vault at `C:\Users\<you>\Documents\Typi Vault` if you have not chosen one yet
 - Blocks paste/drop into the editor so Typi stays a writing desk, not a dumping ground
+- Checks whether Obsidian is installed and can install the official Obsidian app through Windows Package Manager if the user agrees
 - Works as an Electron desktop app and as a simple browser version
 
 ## Windows app
@@ -43,6 +44,8 @@ The installer writes Typi's vault config to `%APPDATA%\typi\config.json`. If you
 ```text
 C:\Users\<you>\Documents\Typi Vault
 ```
+
+On first launch, Typi checks whether Obsidian is installed. If it is missing, Typi asks before doing anything. You can let Typi install the official `Obsidian.Obsidian` Windows package, open the Obsidian download page, or skip for now. Typi still works without Obsidian because it saves plain Markdown files, but Obsidian is recommended for browsing and organizing those notes.
 
 ## Web version
 
