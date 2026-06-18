@@ -9,6 +9,21 @@ const NOTES_FOLDER = "Typi Notes";
 const OBSIDIAN_DOWNLOAD_URL = "https://obsidian.md/download";
 const OBSIDIAN_LATEST_RELEASE_API = "https://api.github.com/repos/obsidianmd/obsidian-releases/releases/latest";
 const OBSIDIAN_PROMPT_VERSION = 2;
+const APP_USER_MODEL_ID = "app.typi.writer";
+
+if (process.platform === "win32") {
+  app.setAppUserModelId(APP_USER_MODEL_ID);
+}
+
+function getWindowIconPath() {
+  if (app.isPackaged) {
+    return process.platform === "win32"
+      ? path.join(process.resourcesPath, "Typi.ico")
+      : path.join(process.resourcesPath, "icon.png");
+  }
+
+  return path.join(__dirname, "..", "icons", "icon.png");
+}
 
 function getDefaultVaultPath() {
   return path.join(app.getPath("documents"), DEFAULT_VAULT_NAME);
@@ -549,6 +564,7 @@ function createWindow() {
     minWidth: 720,
     minHeight: 640,
     title: "Typi",
+    icon: getWindowIconPath(),
     autoHideMenuBar: true,
     backgroundColor: "#0c0a08",
     webPreferences: {

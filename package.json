@@ -29,6 +29,17 @@
       "output": "dist",
       "buildResources": "build"
     },
+    "afterPack": "scripts/after-pack.cjs",
+    "extraResources": [
+      {
+        "from": "build/icon.ico",
+        "to": "Typi.ico"
+      },
+      {
+        "from": "icons/icon.png",
+        "to": "icon.png"
+      }
+    ],
     "files": [
       "index.html",
       "styles.css",
