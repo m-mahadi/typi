@@ -1,36 +1,93 @@
-# Typi - typewriter simulator and writing app
+# Typi
 
-Typi is an open source typewriter simulator, typewriter software, and focused writing app for Windows. It gives you a typewriter-style writing desk, blocks paste, plays typewriter sounds, autosaves Markdown notes, and opens them in an Obsidian vault.
+Typi is a typewriter writing desk for Windows, Markdown, and Obsidian.
 
-Website: https://m-mahadi.github.io/typi.html
+It gives you a blank sheet, real typing feedback, local autosave, and one firm
+rule: write it yourself. Paste is blocked so the page does not become a dumping
+ground. Every note is saved as Markdown, so your writing stays yours.
 
-Download: https://github.com/m-mahadi/typi/releases/latest
+Website: <https://m-mahadi.github.io/typi.html>
 
-## What it does
+Download: <https://github.com/m-mahadi/typi/releases/latest>
 
-- Typewriter-inspired writing UI with key sounds
-- Typewriter simulator software for focused writing
-- Typewriter writing app for Windows, Markdown, and Obsidian
-- Local draft autosave while you write
-- Vault autosave in the Windows app, so the current sheet is written to Markdown while you type
-- Saves Markdown notes into `Typi Notes/` inside your vault
-- Lets you choose a vault with **Link Vault**
-- Opens the active vault directly in Obsidian with **Open Obsidian**
-- Opens the exact saved-notes folder with **Show Notes**
-- Creates a default local vault at `C:\Users\<you>\Documents\Typi Vault` if you have not chosen one yet
-- Blocks paste/drop into the editor so Typi stays a writing desk, not a dumping ground
-- Checks whether Obsidian is installed and can download/open the official Obsidian Windows installer if the user agrees
-- Works as an Electron desktop app and as a simple browser version
+## Why Typi Is Best For First Drafts
 
-## Windows app
+Most writing apps are built for managing text after it exists. Typi is built for
+the harder moment before it exists.
 
-Download the Windows installer from the [latest GitHub release](https://github.com/m-mahadi/typi/releases/latest):
+That is why it feels different:
+
+- It blocks paste and drag-drop, so the desk stays for writing, not collecting.
+- It plays typewriter sounds so each keypress feels physical.
+- It autosaves locally while you write.
+- It saves Markdown into an Obsidian vault, not a locked app format.
+- It can open the current note directly in Obsidian.
+- It can show the saved notes folder in File Explorer even if Obsidian is not
+  installed.
+- It creates a default Typi Vault on first install, then remembers the vault you
+  choose.
+- It works as a focused desktop app and as a simple browser version.
+
+Typi wins because it is intentionally narrow. It is not trying to be a full
+knowledge base, AI editor, or publishing suite. It is the place where the first
+draft starts moving.
+
+## What It Does
+
+- Typewriter-inspired writing UI.
+- Key, space, backspace, carriage return, and bell sounds.
+- Sound toggle.
+- Paste and drop blocking.
+- Local draft autosave.
+- Vault autosave in the Windows app.
+- Markdown notes saved into `Typi Notes/`.
+- **Link Vault** to choose an Obsidian vault.
+- **Open Obsidian** to open the active vault and current note.
+- **Show Notes** to open the saved-notes folder in File Explorer.
+- First-run Obsidian check with a user-approved installer flow.
+
+## Windows App
+
+Download the installer from the
+[latest GitHub release](https://github.com/m-mahadi/typi/releases/latest):
 
 ```text
 typi-setup.exe
 ```
 
-Build the installer:
+On first launch, Typi creates:
+
+```text
+Documents\Typi Vault\
+  Typi Notes\
+  Welcome to Typi.md
+```
+
+The saved vault path lives in:
+
+```text
+%APPDATA%\typi\config.json
+```
+
+If you choose a different vault with **Link Vault**, Typi remembers it. Reinstall
+keeps using that saved path when it still exists.
+
+## Obsidian
+
+Typi saves plain Markdown, so Obsidian is optional. The notes are still normal
+files without it.
+
+Obsidian makes the vault nicer to browse. If Obsidian is missing, Typi asks
+before doing anything. You can:
+
+- let Typi download and open the official Obsidian Windows installer;
+- open the Obsidian download page yourself;
+- skip and keep writing.
+
+Use **Open Obsidian** to register the vault and open the active note. Use
+**Show Notes** when you just want the folder.
+
+## Build The Windows App
 
 ```powershell
 npm install
@@ -39,37 +96,43 @@ npm run build:win
 
 The build output appears in `dist/`:
 
-- `typi-setup.exe` - Windows installer
-- `win-unpacked/Typi.exe` - unpacked app
+```text
+dist\typi-setup.exe
+dist\win-unpacked\Typi.exe
+```
 
-Install locally:
+Install the local build:
 
 ```powershell
 npm run install:win
 ```
 
-The installer writes Typi's vault path to `%APPDATA%\typi\config.json` (for example `vaultPath` pointing at your Documents folder). On a first install, the vault is created under your **Documents** folder as `Typi Vault`. Reinstalling keeps that same path if the vault folder still exists, or if you chose a different folder with **Link Vault**. Typi always opens **Show Notes** and **Open Obsidian** using that saved path—not a fixed drive letter.
+`npm run install:win` installs Typi only. It does not install Obsidian or open
+Obsidian download pages.
 
-On first launch, Typi checks whether Obsidian is installed before opening the writing desk. If Obsidian is missing, Typi asks first. You can let Typi download and open the official Obsidian Windows installer, open the Obsidian download page, or skip for now. After the installer opens, press **Continue** so Typi can detect Obsidian and register your vault. Typi still works without Obsidian because it saves plain Markdown files, but Obsidian is recommended for browsing and organizing those notes.
-
-`npm run install:win` installs Typi only and launches Typi. It does not install Obsidian or open Obsidian download pages.
-
-Use **Open Obsidian** to register the vault from `config.json` in Obsidian, launch Obsidian with that folder, and open the active note (or `Welcome to Typi.md`). Use **Show Notes** to open that vault's `Typi Notes/` folder in File Explorer, even if Obsidian is not installed.
-
-## Web version
+## Web Version
 
 ```powershell
 npm run start:web
 ```
 
-Open `http://localhost:8080` in Chrome or Edge. The web version uses the File System Access API for vault saves.
+Open:
+
+```text
+http://localhost:8080
+```
+
+The web version uses the browser's File System Access API for vault saves, so
+Chrome or Edge works best.
 
 ## Sounds
 
-Typi uses local sound files in `sounds/`. Attribution is in `sounds/ATTRIBUTION.md`.
+Typi uses local typewriter sounds in `sounds/`. Attribution is in
+`sounds/ATTRIBUTION.md`.
 
 ## License
 
-Typi's source code is open source under the MIT License. See `LICENSE`.
+Typi source code is MIT licensed. See `LICENSE`.
 
-Bundled typewriter sound effects are from Mixkit and remain under the Mixkit License; see `sounds/ATTRIBUTION.md`.
+Bundled typewriter sound effects are from Mixkit and remain under the Mixkit
+License. See `sounds/ATTRIBUTION.md`.

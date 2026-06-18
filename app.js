@@ -122,6 +122,61 @@ function hasNoteContent() {
   return Boolean(titleInput.value.trim() || editor.value.trim());
 }
 
+function isInteractiveTypingTarget(target) {
+  if (!(target instanceof Element)) return false;
+  return Boolean(target.closest("textarea, input, select, button, [contenteditable='true']"));
+}
+
+function insertTextInEditor(text) {
+  const start = editor.selectionStart ?? editor.value.length;
+  const end = editor.selectionEnd ?? start;
+  editor.setRangeText(text, start, end, "end");
+  editor.dispatchEvent(
+    new InputEvent("input", {
+      bubbles: true,
+      inputType: "insertText",
+      data: text,
+    })
+  );
+}
+
+function routeLooseTypingToEditor(event) {
+  if (
+    event.defaultPrevented ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.altKey ||
+    event.isComposing ||
+    event.key.length !== 1 ||
+    isInteractiveTypingTarget(event.target)
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+  editor.focus();
+  handleTypingFeedback(event, editor);
+  insertTextInEditor(event.key);
+}
+
+// Keep the note's identity in step with what is on the sheet. When the sheet
+// goes empty, end the current note so the next words you type begin a fresh
+// file instead of overwriting the piece you just finished. When content first
+// appears, stamp a stable creation time that ties every later save (and the
+// vault filename) to this one note.
+function syncNoteIdentityWithContent() {
+  if (hasNoteContent()) {
+    if (!activeCreatedAt) {
+      activeCreatedAt = new Date().toISOString();
+    }
+    return;
+  }
+  activeFilename = null;
+  activeCreatedAt = null;
+  lastVaultFingerprint = "";
+  clearTimeout(vaultSaveTimer);
+}
+
 function scheduleVaultAutoSave() {
   if (!isElectron || !hasNoteContent()) return;
   clearTimeout(vaultSaveTimer);
@@ -389,7 +444,13 @@ async function getWritableVault() {
 async function saveToVault(markdown, filename) {
   if (isElectron) {
     const result = await window.typi.saveNote(filename, markdown);
-    if (result.ok) return "vault";
+    if (result.ok) {
+      // The vault may store the note under a de-duplicated name so it never
+      // overwrites a different note. Adopt the real on-disk name so later
+      // edits keep updating the same file.
+      if (result.filename) activeFilename = result.filename;
+      return "vault";
+    }
     downloadMarkdown(markdown, filename);
     showToast(result.error || "Save failed - downloaded instead.");
     return "download";
@@ -427,10 +488,11 @@ async function saveNote() {
     const markdown = buildMarkdown(title, body, activeCreatedAt);
     const method = await saveToVault(markdown, filename);
     if (method === "vault") {
-      lastVaultFingerprint = getVaultFingerprint(filename, title, body);
+      const savedName = activeFilename || filename;
+      lastVaultFingerprint = getVaultFingerprint(savedName, title, body);
       persistDraft();
-      showToast(`Saved to Obsidian: ${filename}`);
-      saveStatusEl.textContent = `In vault - ${filename}`;
+      showToast(`Saved to Obsidian: ${savedName}`);
+      saveStatusEl.textContent = `In vault - ${savedName}`;
       if (soundEnabled) playBell();
     }
   } catch (err) {
@@ -459,6 +521,7 @@ function clearSheet() {
 }
 
 editor.addEventListener("input", () => {
+  syncNoteIdentityWithContent();
   updateWordCount();
   scheduleDraftSave();
   scheduleVaultAutoSave();
@@ -478,6 +541,7 @@ editor.addEventListener("keyup", () => {
 });
 
 titleInput.addEventListener("input", () => {
+  syncNoteIdentityWithContent();
   scheduleDraftSave();
   scheduleVaultAutoSave();
 });
@@ -488,7 +552,8 @@ function blockImportedText(event) {
 }
 
 function blockImportedInput(event) {
-  if (event.inputType === "insertFromPaste" || event.inputType === "insertFromDrop") {
+  const isImport = event.inputType === "insertFromPaste" || event.inputType === "insertFromDrop";
+  if (isImport && event.dataTransfer) {
     blockImportedText(event);
   }
 }
@@ -510,10 +575,14 @@ async function autoSaveToVault() {
       saveStatusEl.textContent = "Local draft saved - vault autosave failed";
       return;
     }
-    lastVaultFingerprint = fingerprint;
+    // Adopt the real on-disk name and re-key the fingerprint to it so the next
+    // autosave doesn't needlessly re-write because the name changed.
+    if (result.filename) activeFilename = result.filename;
+    const savedName = activeFilename || filename;
+    lastVaultFingerprint = getVaultFingerprint(savedName, title, body);
     persistDraft();
     setVaultConnected(true);
-    saveStatusEl.textContent = `Auto-saved to vault - ${filename}`;
+    saveStatusEl.textContent = `Auto-saved to vault - ${savedName}`;
   } catch {
     saveStatusEl.textContent = "Local draft saved - vault autosave failed";
   }
@@ -525,6 +594,8 @@ editor.addEventListener("beforeinput", blockImportedInput);
 titleInput.addEventListener("paste", blockImportedText);
 titleInput.addEventListener("drop", blockImportedText);
 titleInput.addEventListener("beforeinput", blockImportedInput);
+
+document.addEventListener("keydown", routeLooseTypingToEditor, true);
 
 editor.addEventListener("keydown", (event) => {
   handleTypingFeedback(event, editor);
@@ -595,6 +666,7 @@ if ("serviceWorker" in navigator) {
 }
 
 restoreDraft();
+syncNoteIdentityWithContent();
 updateWordCount();
 resizeEditor();
 updateSoundButton();

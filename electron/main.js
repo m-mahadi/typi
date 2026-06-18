@@ -415,6 +415,61 @@ function setVaultPath(vaultPath) {
   return getVaultInfo();
 }
 
+function parseCreatedAt(markdown) {
+  const text = String(markdown || "").replace(/^\uFEFF/, "");
+  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  if (!frontmatter) return null;
+  const created = /(?:^|\n)created:\s*([^\r\n]+)/.exec(frontmatter[1]);
+  return created ? created[1].trim() : null;
+}
+
+function readNoteCreatedAt(filePath) {
+  try {
+    // The frontmatter is at the very top, so reading the head is enough.
+    return parseCreatedAt(fs.readFileSync(filePath, "utf8").slice(0, 4096));
+  } catch {
+    return null;
+  }
+}
+
+// Decide which file a note should be written to. Each note is identified by its
+// `created` timestamp, so:
+//   - editing an existing note keeps writing to the same file (even if its
+//     title, and therefore the suggested filename, has changed); and
+//   - a brand-new note never silently overwrites a different existing note --
+//     it gets a collision-free filename instead.
+function resolveNotePath(notesDir, requestedName, createdAt) {
+  const base = path.basename(String(requestedName || "")).replace(/\.md$/i, "") || "untitled-note";
+
+  if (createdAt) {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(notesDir);
+    } catch {
+      entries = [];
+    }
+    for (const entry of entries) {
+      if (!/\.md$/i.test(entry)) continue;
+      if (readNoteCreatedAt(path.join(notesDir, entry)) === createdAt) {
+        return path.join(notesDir, entry);
+      }
+    }
+  }
+
+  let candidate = path.join(notesDir, `${base}.md`);
+  let counter = 2;
+  while (fs.existsSync(candidate)) {
+    const existingCreatedAt = readNoteCreatedAt(candidate);
+    // Same note (no on-disk match found above only when createdAt is missing):
+    // safe to reuse. A legacy file with no frontmatter and no incoming
+    // timestamp can't be told apart, so reuse it rather than spawn duplicates.
+    if (existingCreatedAt === createdAt) break;
+    candidate = path.join(notesDir, `${base}-${counter}.md`);
+    counter += 1;
+  }
+  return candidate;
+}
+
 function saveNoteToVault(filename, markdown) {
   const info = getVaultInfo();
   if (!info.connected) {
@@ -425,11 +480,11 @@ function saveNoteToVault(filename, markdown) {
   const notesDir = path.join(vaultPath, NOTES_FOLDER);
   fs.mkdirSync(notesDir, { recursive: true });
 
-  const safeName = path.basename(filename);
-  const filePath = path.join(notesDir, safeName);
+  const createdAt = parseCreatedAt(markdown);
+  const filePath = resolveNotePath(notesDir, filename, createdAt);
   fs.writeFileSync(filePath, markdown, "utf8");
 
-  return { ok: true, path: filePath, filename: safeName };
+  return { ok: true, path: filePath, filename: path.basename(filePath) };
 }
 
 function getObsidianConfigPath() {
